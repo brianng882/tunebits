@@ -3,24 +3,24 @@
 
 
 ## What you built? 
+My main project idea is to build a Music Theory Learning Module. This would be similar to Duolingo's approach but specialized for jazz theory (as this is the specific portion of music I am interested in).
 
-TODO: Short description of what you attempted to build
+For this hack-a-thing assignment, I got my hands dirty in creating a small web-app, focusing on the React technology and and Tone.js for the musical component. My inititial idea is creating a playable mini-piano with keys, and guessing the audio note by selecting the correct key. I plan to improve my UI/UX skills, maybe with an animation that visualizes the sound waves for each chord.
+
 
 Include some screenshots.
 [How?](https://help.github.com/articles/about-readmes/#relative-links-and-image-paths-in-readme-files)
 
 ## Who Did What?
-
-TODO: who worked on what part?
+I worked solo on the entire project
 
 ## What you learned
 
 TODO: what worked / what didn't work
 
 ## Authors
-
-TODO: list of authors
+- me, James Park
 
 ## Acknowledgments
-
-TODO: cite any tutorials followed here
+- Intro React Tutorial: https://www.youtube.com/watch?v=SqcY0GlETPk&ab_channel=ProgrammingwithMosh
+- 
