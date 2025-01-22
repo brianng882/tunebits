@@ -1,6 +1,7 @@
 [![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/YLbyQW4X)
 # Hack Technology / Project Attempted
 Tech: React, Tone.js
+Project Name: Find The Note
 
 ## What you built? 
 My main semester-long project idea is to build a Music Theory Learning Module. This would be similar to Duolingo's approach but specialized for introductory music theory  for those without any musical background. 
