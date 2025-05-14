@@ -1,12 +1,6 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/YLbyQW4X)
 # Hack Technology / Project Attempted
 Tech: React, Tone.js
 Project Name: TuneBits
-
-## What you built? 
-My main semester-long project idea is to build a Music Theory Learning Module. This would be similar to Duolingo's approach but specialized for introductory music theory  for those without any musical background. 
-
-For this hack-a-thing assignment, I got my hands dirty in creating a small web-app, focusing on the React technology and and Tone.js for the musical component. My initial idea is to create a playable mini-piano with keys, and guessing the audio note by selecting the correct key. The goal is for the user to gain perfect pitch by practicing this game multiple times!
 
 **MAKE SURE TO HAVE AUDIO ON!**
 ### To run the program:
