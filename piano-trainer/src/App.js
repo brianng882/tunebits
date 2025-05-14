@@ -109,7 +109,7 @@ function App() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Game Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-4">Find The Note</h1>
+          <h1 className="text-3xl font-bold mb-4">TuneBits - Find The Note</h1>
           
           {gameState === 'idle' && (
             <button
