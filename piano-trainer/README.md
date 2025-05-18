@@ -1,70 +1,95 @@
-# Getting Started with Create React App
+# TuneBits - Interactive Music Training Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+TuneBits is a modern web application designed to help musicians of all levels improve their skills through interactive games and challenges. With a focus on ear training, music theory, and rhythm, TuneBits makes practicing music fun and engaging.
 
-## Available Scripts
+![TuneBits Screenshot](https://via.placeholder.com/800x400?text=TuneBits+Screenshot)
 
-In the project directory, you can run:
+## Features
 
-### `npm start`
+### 🎹 Multiple Game Modes
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Find The Note**: Test your ability to identify piano notes quickly
+- **Chord Recognition**: Train your ear to identify different chord types
+- **Scale Builder**: Learn to build musical scales note by note
+- **Interval Training**: Develop your ear for musical intervals
+- **Rhythm Challenge**: Improve your timing by tapping along to rhythms
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 🏆 Tournament Mode
 
-### `npm test`
+Compete with friends in a multi-round competition! Tournament mode features:
+- Support for up to 8 players
+- Customizable number of rounds and time limits
+- Real-time scoring and player progression
+- Stunning visual effects for winners
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 📊 Leaderboards
 
-### `npm run build`
+- Track high scores across all game modes
+- Compare your performance with other players
+- Add your scores to climb the rankings
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### ✨ Modern UI/UX
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- Dark theme design for reduced eye strain
+- Responsive layout that works on desktop and tablets
+- Beautiful animations and transitions
+- Interactive keyboard visualizations
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Getting Started
 
-### `npm run eject`
+### Prerequisites
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- Node.js v14 or higher
+- npm or yarn
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Installation
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+1. Clone the repository
+   ```bash
+   git clone https://github.com/yourusername/tunebits.git
+   cd tunebits
+   ```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+2. Install dependencies
+   ```bash
+   npm install
+   # or
+   yarn install
+   ```
 
-## Learn More
+3. Start the development server
+   ```bash
+   npm start
+   # or
+   yarn start
+   ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+4. Open your browser to http://localhost:3000
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Technologies Used
 
-### Code Splitting
+- **React**: Front-end library for building the user interface
+- **Tone.js**: Web Audio framework for all sound generation
+- **Tailwind CSS**: Utility-first CSS framework for styling
+- **localStorage API**: For persisting leaderboard data
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## How to Play
 
-### Analyzing the Bundle Size
+1. **Choose a Game Mode**: From the home screen, select any of the available games
+2. **Follow On-Screen Instructions**: Each game has specific instructions
+3. **Track Your Progress**: Your scores will be tracked in the leaderboard
+4. **Tournament Mode**: For multiplayer fun, set up a tournament with friends
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Contributing
 
-### Making a Progressive Web App
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## License
 
-### Advanced Configuration
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## Acknowledgments
 
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Piano keyboard design inspired by various online piano learning tools
+- Sound samples generated using the Tone.js library
+- Music theory concepts based on standard music education practices
