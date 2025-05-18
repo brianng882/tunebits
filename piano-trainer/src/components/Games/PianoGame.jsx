@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Tone from 'tone';
 import ClimbingGame from './ClimbingGame';
 
