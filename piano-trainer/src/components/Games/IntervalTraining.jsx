@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Tone from 'tone';
-import ClimbingGame from './ClimbingGame';
+import RaceVisualization from './RaceVisualization';
 
 // Define all musical intervals
 const INTERVALS = [
@@ -46,7 +46,7 @@ function IntervalTraining({ onScoreUpdate, isPaused, isCompetition = false }) {
   const [availableIntervals, setAvailableIntervals] = useState([]);
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [intervalNotes, setIntervalNotes] = useState([]);
-  const [climbingGameActive, setClimbingGameActive] = useState(false);
+  const [raceActive, setRaceActive] = useState(false);
   
   // Use refs for audio objects
   const synthRef = useRef(null);
@@ -62,14 +62,11 @@ function IntervalTraining({ onScoreUpdate, isPaused, isCompetition = false }) {
   // Handle pausing
   useEffect(() => {
     if (isPaused && gameState === 'playing') {
-      // Stop any playing sounds when paused
       if (synthRef.current) {
-        synthRef.current.releaseAll();
+        synthRef.current.triggerRelease();
       }
     }
-    
-    // Pause climbing game when the main game is paused
-    setClimbingGameActive(!isPaused);
+    setRaceActive(!isPaused);
   }, [isPaused, gameState]);
   
   // Initialize audio context and synth
@@ -206,7 +203,7 @@ function IntervalTraining({ onScoreUpdate, isPaused, isCompetition = false }) {
     setRound(1);
     setLevel(1);
     startNewRound();
-    setClimbingGameActive(true);
+    setRaceActive(true);
   };
   
   // Handle interval selection
@@ -266,10 +263,9 @@ function IntervalTraining({ onScoreUpdate, isPaused, isCompetition = false }) {
     return prevWhiteKeyIndex * 3 - 0.7 + 'rem';
   };
   
-  // Handle climbing game completion
-  const handleClimbingComplete = () => {
-    console.log("Climbing game completed!");
-    // Add any special rewards or animations here
+  // Handle race completion
+  const handleRaceComplete = () => {
+    console.log("Race completed!");
   };
   
   return (
@@ -449,17 +445,18 @@ function IntervalTraining({ onScoreUpdate, isPaused, isCompetition = false }) {
             </div>
           </div>
           
-          {/* Climbing Game Visualization - Takes 2/5 of the width on medium+ screens */}
+          {/* Race Visualization */}
           <div className="md:col-span-2">
             {gameState !== 'idle' && (
               <div className="h-full flex flex-col">
-                <h3 className="text-lg font-bold mb-2 text-white text-center">Climb to Victory!</h3>
+                <h3 className="text-lg font-bold mb-2 text-white text-center">Race to the Finish!</h3>
                 <div className="flex-1 flex items-center justify-center">
-                  <ClimbingGame 
+                  <RaceVisualization 
                     score={score} 
                     maxScore={15} 
-                    isActive={climbingGameActive && gameState === 'playing'} 
-                    onComplete={handleClimbingComplete}
+                    isActive={raceActive && gameState === 'playing'} 
+                    onComplete={handleRaceComplete}
+                    difficulty={level}
                   />
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import PianoGame from './components/ExistingGame/PianoGame';
+import PianoGame from './components/Games/PianoGame';
 import RhythmChallenge from './components/Games/RhythmChallenge';
 import ChordRecognition from './components/Games/ChordRecognition';
 import ScaleBuilder from './components/Games/ScaleBuilder';

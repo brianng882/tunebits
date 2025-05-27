@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Tone from 'tone';
-import ClimbingGame from './ClimbingGame';
+import RaceVisualization from './RaceVisualization';
 
 const ALL_NOTES = [
   { note: 'C', type: 'white', index: 0 },
@@ -18,19 +18,30 @@ const ALL_NOTES = [
 ];
 
 function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
-  const [gameState, setGameState] = useState('idle'); // idle, playing, feedback, complete
-  const [level, setLevel] = useState(1); 
+  // Game state
+  const [gameState, setGameState] = useState('idle'); // idle, countdown, playing, feedback, complete
   const [score, setScore] = useState(0);
   const [round, setRound] = useState(1);
+  const [level, setLevel] = useState(1);
+  
+  // Countdown state
+  const [countdown, setCountdown] = useState(3);
+  
+  // Game data
   const [targetNote, setTargetNote] = useState(null);
   const [selectedNote, setSelectedNote] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [availableNotes, setAvailableNotes] = useState([]);
-  const [climbingGameActive, setClimbingGameActive] = useState(false);
   
-  // Use ref for synth to prevent recreation
+  // Race visualization
+  const [raceActive, setRaceActive] = useState(false);
+  
+  // Audio refs
   const synthRef = useRef(null);
   const audioInitialized = useRef(false);
+  
+  // Timer refs
+  const countdownTimer = useRef(null);
   
   // Update parent component with score
   useEffect(() => {
@@ -41,26 +52,43 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
   
   // Handle pausing
   useEffect(() => {
-    if (isPaused && gameState === 'playing') {
-      // Stop any playing sounds if game is paused
+    setRaceActive(!isPaused && gameState === 'playing');
+    
+    if (isPaused) {
+      // Clear any active timers when paused
+      if (countdownTimer.current) {
+        clearTimeout(countdownTimer.current);
+        countdownTimer.current = null;
+      }
+      
+      // Stop any playing audio
       if (synthRef.current) {
         synthRef.current.triggerRelease();
       }
     }
-    
-    // Pause the climbing game when the main game is paused
-    setClimbingGameActive(!isPaused);
   }, [isPaused, gameState]);
   
-  // Initialize Tone.js
+  // Set up available notes based on level
+  useEffect(() => {
+    if (level === 1) {
+      // Level 1: Basic white keys only (C, D, E, F, G)
+      setAvailableNotes(ALL_NOTES.filter(n => ['C', 'D', 'E', 'F', 'G'].includes(n.note)));
+    } else if (level === 2) {
+      // Level 2: All white keys
+      setAvailableNotes(ALL_NOTES.filter(n => n.type === 'white'));
+    } else {
+      // Level 3: All notes including black keys
+      setAvailableNotes(ALL_NOTES);
+    }
+  }, [level]);
+  
+  // Initialize Tone.js audio
   const initializeAudio = useCallback(async () => {
-    if (audioInitialized.current) return;
+    if (audioInitialized.current) return true;
     
     try {
-      // Start audio context with user gesture
       await Tone.start();
       
-      // Create a synth for playing notes if it doesn't exist
       if (!synthRef.current) {
         synthRef.current = new Tone.Synth({
           oscillator: { type: 'sine' },
@@ -70,105 +98,158 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
       
       audioInitialized.current = true;
       console.log("Audio initialized successfully");
+      return true;
     } catch (error) {
       console.error("Failed to initialize audio:", error);
+      return false;
     }
   }, []);
   
-  // Cleanup when component unmounts
+  // Cleanup audio on unmount
   useEffect(() => {
     return () => {
+      if (countdownTimer.current) {
+        clearTimeout(countdownTimer.current);
+      }
+      
       if (synthRef.current) {
         synthRef.current.dispose();
         synthRef.current = null;
       }
+      
       audioInitialized.current = false;
     };
   }, []);
   
-  // Set up available notes based on level
-  useEffect(() => {
-    if (level === 1) {
-      // Level 1: C, D, E, F, G
-      setAvailableNotes(ALL_NOTES.filter(n => ['C', 'D', 'E', 'F', 'G'].includes(n.note)));
-    } else if (level === 2) {
-      // Level 2: All white keys
-      setAvailableNotes(ALL_NOTES.filter(n => n.type === 'white'));
-    } else {
-      // Level 3: All notes
-      setAvailableNotes(ALL_NOTES);
-    }
-  }, [level]);
-  
-  // Generate a random note
+  // Generate a random note from available notes
   const generateRandomNote = useCallback(() => {
+    if (availableNotes.length === 0) {
+      console.warn("No available notes to generate from");
+      return null;
+    }
+    
     const randomNote = availableNotes[Math.floor(Math.random() * availableNotes.length)];
-    setTargetNote(randomNote);
     return randomNote;
   }, [availableNotes]);
   
   // Play a note
-  const playNote = async (note) => {
-    if (!note) return;
+  const playNote = useCallback(async (note) => {
+    if (!note || isPaused) return;
     
     // Ensure audio is initialized
     if (!audioInitialized.current) {
-      await initializeAudio();
+      const success = await initializeAudio();
+      if (!success) return;
     }
     
-    // Make sure context is running
+    // Ensure audio context is running
     if (Tone.context.state !== 'running') {
       await Tone.context.resume();
     }
     
     if (synthRef.current) {
-      // Calculate midi note (C4 = 60, C#4 = 61, etc.)
-      const midiNote = 60 + ALL_NOTES.findIndex(n => n.note === note.note);
-      const frequency = Tone.Frequency(midiNote, "midi");
-      
-      // Play the note
-      synthRef.current.triggerAttackRelease(frequency, "2n");
+      try {
+        const midiNote = 60 + ALL_NOTES.findIndex(n => n.note === note.note);
+        const frequency = Tone.Frequency(midiNote, "midi");
+        synthRef.current.triggerAttackRelease(frequency, "1n");
+      } catch (error) {
+        console.error("Error playing note:", error);
+      }
     }
-  };
+  }, [initializeAudio, isPaused]);
+  
+  // Start countdown
+  const startCountdown = useCallback(() => {
+    setGameState('countdown');
+    setCountdown(3);
+    
+    const runCountdown = (count) => {
+      if (count > 0) {
+        setCountdown(count);
+        countdownTimer.current = setTimeout(() => {
+          runCountdown(count - 1);
+        }, 1000);
+      } else {
+        // Countdown finished, start the round
+        const note = generateRandomNote();
+        if (note) {
+          setTargetNote(note);
+          setGameState('playing');
+          
+          // Play the note after a short delay
+          setTimeout(() => {
+            playNote(note);
+          }, 300);
+        }
+      }
+    };
+    
+    runCountdown(3);
+  }, [generateRandomNote, playNote]);
   
   // Start a new round
-  const startNewRound = () => {
+  const startNewRound = useCallback(() => {
     setSelectedNote(null);
     setFeedback(null);
+    setTargetNote(null);
     
-    // Generate a random note and play it
-    const note = generateRandomNote();
-    playNote(note);
+    // Clear any existing timers
+    if (countdownTimer.current) {
+      clearTimeout(countdownTimer.current);
+      countdownTimer.current = null;
+    }
     
-    setGameState('playing');
-  };
+    // Start countdown
+    startCountdown();
+  }, [startCountdown]);
   
   // Start the game
-  const startGame = async () => {
-    await initializeAudio();
-    setScore(0);
-    setRound(1);
-    setLevel(1);
-    startNewRound();
-    setClimbingGameActive(true);
-  };
+  const startGame = useCallback(async () => {
+    try {
+      // Initialize audio first
+      const audioSuccess = await initializeAudio();
+      if (!audioSuccess) {
+        alert("Failed to initialize audio. Please try again.");
+        return;
+      }
+      
+      // Reset game state
+      setScore(0);
+      setRound(1);
+      setLevel(1);
+      setGameState('idle');
+      
+      // Start first round after a brief delay
+      setTimeout(() => {
+        startNewRound();
+        setRaceActive(true);
+      }, 100);
+      
+    } catch (error) {
+      console.error("Error starting game:", error);
+      alert("Failed to start game. Please try again.");
+    }
+  }, [initializeAudio, startNewRound]);
   
   // Handle note selection
-  const handleSelectNote = (note) => {
-    if (isPaused) return;
+  const handleSelectNote = useCallback((note) => {
+    if (gameState !== 'playing' || isPaused || !targetNote) return;
     
     setSelectedNote(note);
     
-    // Check if correct
     const isCorrect = note.note === targetNote.note;
     
-    // Update score and provide feedback
     if (isCorrect) {
       setScore(prevScore => prevScore + 1);
       setFeedback({
         message: `Correct! That's the note ${targetNote.note}.`,
         success: true
       });
+      
+      // Level up every 5 correct answers
+      if ((score + 1) % 5 === 0 && level < 3) {
+        setLevel(prev => prev + 1);
+      }
     } else {
       setFeedback({
         message: `Not quite. That's ${note.note}, but the correct note is ${targetNote.note}.`,
@@ -177,39 +258,35 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
     }
     
     setGameState('feedback');
-    
-    // Level up after every 5 correct answers
-    if (isCorrect && (score + 1) % 5 === 0 && level < 3) {
-      setLevel(prev => prev + 1);
-    }
-  };
+    setRaceActive(false);
+  }, [gameState, isPaused, targetNote, score, level]);
   
   // Handle continue button
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     if (round >= 15) {
       setGameState('complete');
+      setRaceActive(false);
     } else {
       setRound(prev => prev + 1);
       startNewRound();
     }
-  };
+  }, [round, startNewRound]);
   
-  // Play again after completion
-  const handlePlayAgain = () => {
+  // Handle play again
+  const handlePlayAgain = useCallback(() => {
     startGame();
-  };
+  }, [startGame]);
   
-  // Calculate keyboard positions for black keys
+  // Calculate black key position
   const getBlackKeyLeftPosition = (note) => {
     const noteIndex = ALL_NOTES.find(n => n.note === note)?.index || 0;
     const prevWhiteKeyIndex = ALL_NOTES.filter(n => n.type === 'white' && n.index < noteIndex).length;
     return prevWhiteKeyIndex * 3 - 0.7 + 'rem';
   };
   
-  // Handle climbing game completion
-  const handleClimbingComplete = () => {
-    console.log("Climbing game completed!");
-    // Add any special rewards or animations here
+  // Handle race completion
+  const handleRaceComplete = () => {
+    console.log("Race completed!");
   };
   
   return (
@@ -221,7 +298,9 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
           
           {gameState === 'idle' && (
             <div>
-              <p className="mb-6 text-gray-300">Listen to the note and identify it on the piano keyboard. Train your ear for pitch!</p>
+              <p className="mb-6 text-gray-300">
+                Listen to the note and identify it on the piano keyboard. Train your ear for pitch!
+              </p>
               <button
                 onClick={startGame}
                 className="glow-button bg-gradient-to-r from-purple-600 to-indigo-700 text-white px-8 py-3 rounded-lg hover:from-purple-700 hover:to-indigo-800 transform transition-all hover:-translate-y-1"
@@ -249,11 +328,21 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
           )}
         </div>
         
-        {/* Main Game Layout - split into two columns */}
+        {/* Main Game Layout */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          {/* Main Game Area - Takes 3/5 of the width on medium+ screens */}
+          {/* Main Game Area */}
           <div className="md:col-span-3">
             <div className="bg-gray-800 bg-opacity-80 backdrop-blur-md rounded-lg p-6 border border-gray-700 shadow-xl">
+              
+              {/* Countdown State */}
+              {gameState === 'countdown' && (
+                <div className="text-center py-16">
+                  <p className="text-xl text-white mb-8">Get ready to listen for the note...</p>
+                  <div className="text-8xl font-bold text-white animate-pulse">{countdown}</div>
+                </div>
+              )}
+              
+              {/* Playing State */}
               {gameState === 'playing' && (
                 <div className="text-center">
                   <div className="mb-8">
@@ -269,20 +358,23 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
                       </button>
                     </div>
                     
-                    <div className="keyboard-wrapper relative h-40 w-full max-w-md mx-auto mb-4">
+                    {/* Piano Keyboard */}
+                    <div className="keyboard-wrapper relative h-40 w-full max-w-md mx-auto mb-4 bg-gray-900 p-2 rounded-lg shadow-2xl">
                       {/* White keys */}
                       <div className="white-keys flex h-full">
                         {ALL_NOTES.filter(n => n.type === 'white').map(note => (
                           <div
                             key={note.note}
                             onClick={() => handleSelectNote(note)}
-                            className={`white-key w-12 h-full bg-white rounded-b-md border border-gray-300 
-                              ${availableNotes.some(n => n.note === note.note) ? 'cursor-pointer hover:bg-gray-100' : 'opacity-50 cursor-not-allowed'}
-                              ${selectedNote?.note === note.note ? 'bg-indigo-200 border-indigo-400' : ''}
-                              ${isPaused ? 'cursor-not-allowed' : ''}`
-                            }
+                            className={`white-key w-12 h-full rounded-b-lg border-2 cursor-pointer transition-all shadow-lg transform
+                              ${availableNotes.some(n => n.note === note.note) 
+                                ? 'bg-gray-50 border-gray-400 hover:bg-white hover:shadow-xl hover:scale-105 active:bg-gray-200' 
+                                : 'bg-gray-300 border-gray-500 opacity-50 cursor-not-allowed'}
+                              ${selectedNote?.note === note.note ? 'bg-indigo-300 border-indigo-600 shadow-indigo-400/50' : ''}
+                              ${isPaused ? 'cursor-not-allowed opacity-70' : ''}
+                            `}
                           >
-                            <div className="h-full flex items-end justify-center pb-2 text-xs text-gray-500 font-semibold">
+                            <div className="h-full flex items-end justify-center pb-2 text-xs text-gray-800 font-bold">
                               {note.note}
                             </div>
                           </div>
@@ -295,14 +387,16 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
                           <div
                             key={note.note}
                             onClick={() => handleSelectNote(note)}
-                            className={`black-key absolute top-0 w-8 h-24 bg-gray-800 rounded-b-md z-10
-                              ${availableNotes.some(n => n.note === note.note) ? 'cursor-pointer hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'}
-                              ${selectedNote?.note === note.note ? 'bg-indigo-800 border-indigo-700' : ''}
-                              ${isPaused ? 'cursor-not-allowed' : ''}`
-                            }
+                            className={`black-key absolute top-2 w-8 h-24 rounded-b-lg border-2 z-10 cursor-pointer transition-all shadow-lg transform
+                              ${availableNotes.some(n => n.note === note.note) 
+                                ? 'bg-gray-900 border-gray-700 hover:bg-gray-800 hover:shadow-xl hover:scale-105 active:bg-gray-700' 
+                                : 'bg-gray-600 border-gray-500 opacity-50 cursor-not-allowed'}
+                              ${selectedNote?.note === note.note ? 'bg-indigo-700 border-indigo-500 shadow-indigo-400/50' : ''}
+                              ${isPaused ? 'cursor-not-allowed opacity-70' : ''}
+                            `}
                             style={{ left: getBlackKeyLeftPosition(note.note) }}
                           >
-                            <div className="h-full flex items-end justify-center pb-2 text-xs text-gray-400 font-semibold">
+                            <div className="h-full flex items-end justify-center pb-2 text-xs text-gray-200 font-bold">
                               {note.note}
                             </div>
                           </div>
@@ -313,6 +407,7 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
                 </div>
               )}
               
+              {/* Feedback State */}
               {gameState === 'feedback' && (
                 <div className="text-center">
                   <div className={`text-4xl mb-4 ${feedback?.success ? 'text-green-500' : 'text-amber-500'}`}>
@@ -330,22 +425,23 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
                     </button>
                   </div>
                   
-                  <div className="keyboard-wrapper relative h-40 w-full max-w-md mx-auto mb-8">
+                  {/* Show keyboard with correct answer highlighted */}
+                  <div className="keyboard-wrapper relative h-40 w-full max-w-md mx-auto mb-8 bg-gray-900 p-2 rounded-lg shadow-2xl">
                     {/* White keys */}
                     <div className="white-keys flex h-full">
                       {ALL_NOTES.filter(n => n.type === 'white').map(note => (
                         <div
                           key={note.note}
-                          className={`white-key w-12 h-full rounded-b-md border 
-                            ${note.note === targetNote.note 
-                              ? 'bg-green-200 border-green-500' 
-                              : (note.note === selectedNote?.note && note.note !== targetNote.note)
-                                ? 'bg-red-200 border-red-500'
-                                : 'bg-white border-gray-300 opacity-60'
-                            }`
-                          }
+                          className={`white-key w-12 h-full rounded-b-lg border-2 shadow-lg
+                            ${note.note === targetNote?.note 
+                              ? 'bg-green-300 border-green-600 shadow-green-400/50' 
+                              : (note.note === selectedNote?.note && note.note !== targetNote?.note)
+                                ? 'bg-red-300 border-red-600 shadow-red-400/50'
+                                : 'bg-gray-200 border-gray-400 opacity-60'
+                            }
+                          `}
                         >
-                          <div className="h-full flex items-end justify-center pb-2 text-xs text-gray-500 font-semibold">
+                          <div className="h-full flex items-end justify-center pb-2 text-xs text-gray-800 font-bold">
                             {note.note}
                           </div>
                         </div>
@@ -357,17 +453,17 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
                       {ALL_NOTES.filter(n => n.type === 'black').map(note => (
                         <div
                           key={note.note}
-                          className={`black-key absolute top-0 w-8 h-24 rounded-b-md z-10
-                            ${note.note === targetNote.note 
-                              ? 'bg-green-800 border-green-900' 
-                              : (note.note === selectedNote?.note && note.note !== targetNote.note)
-                                ? 'bg-red-800 border-red-900'
-                                : 'bg-gray-800 border-gray-900 opacity-60'
-                            }`
-                          }
+                          className={`black-key absolute top-2 w-8 h-24 rounded-b-lg border-2 z-10 shadow-lg
+                            ${note.note === targetNote?.note 
+                              ? 'bg-green-700 border-green-500 shadow-green-400/50' 
+                              : (note.note === selectedNote?.note && note.note !== targetNote?.note)
+                                ? 'bg-red-700 border-red-500 shadow-red-400/50'
+                                : 'bg-gray-700 border-gray-600 opacity-60'
+                            }
+                          `}
                           style={{ left: getBlackKeyLeftPosition(note.note) }}
                         >
-                          <div className="h-full flex items-end justify-center pb-2 text-xs text-gray-400 font-semibold">
+                          <div className="h-full flex items-end justify-center pb-2 text-xs text-gray-200 font-bold">
                             {note.note}
                           </div>
                         </div>
@@ -384,6 +480,7 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
                 </div>
               )}
               
+              {/* Complete State */}
               {gameState === 'complete' && (
                 <div className="text-center p-6">
                   <div className="text-6xl mb-6">🏆</div>
@@ -402,17 +499,18 @@ function PianoGame({ onScoreUpdate, isPaused, isCompetition = false }) {
             </div>
           </div>
           
-          {/* Climbing Game Visualization - Takes 2/5 of the width on medium+ screens */}
+          {/* Race Visualization */}
           <div className="md:col-span-2">
             {gameState !== 'idle' && (
               <div className="h-full flex flex-col">
-                <h3 className="text-lg font-bold mb-2 text-white text-center">Climb to Victory!</h3>
+                <h3 className="text-lg font-bold mb-2 text-white text-center">Race to the Finish!</h3>
                 <div className="flex-1 flex items-center justify-center">
-                  <ClimbingGame 
+                  <RaceVisualization 
                     score={score} 
                     maxScore={15} 
-                    isActive={climbingGameActive && gameState === 'playing'} 
-                    onComplete={handleClimbingComplete}
+                    isActive={raceActive} 
+                    onComplete={handleRaceComplete}
+                    difficulty={level}
                   />
                 </div>
               </div>

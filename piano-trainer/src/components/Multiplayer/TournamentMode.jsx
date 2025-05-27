@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import PianoGame from '../ExistingGame/PianoGame';
+import PianoGame from '../Games/PianoGame';
 import RhythmChallenge from '../Games/RhythmChallenge';
 import ChordRecognition from '../Games/ChordRecognition';
 import ScaleBuilder from '../Games/ScaleBuilder';

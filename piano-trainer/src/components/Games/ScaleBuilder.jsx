@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Tone from 'tone';
-import ClimbingGame from './ClimbingGame';
+import RaceVisualization from './RaceVisualization';
 
 // Constants
 const MAX_ROUNDS = 10;
@@ -50,16 +50,14 @@ const MOCK_PLAYERS = [
 ];
 
 function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
-  const [gameState, setGameState] = useState('initial'); // initial, playing, feedback
-  const [level, setLevel] = useState(1);
+  const [gameState, setGameState] = useState('idle');
   const [score, setScore] = useState(0);
   const [round, setRound] = useState(1);
-  const [targetScale, setTargetScale] = useState(null);
-  const [selectedNotes, setSelectedNotes] = useState([]);
-  const [availableScales, setAvailableScales] = useState([]);
+  const [currentScale, setCurrentScale] = useState(null);
+  const [userNotes, setUserNotes] = useState([]);
   const [feedback, setFeedback] = useState(null);
-  const [rootNote, setRootNote] = useState(null);
-  const [climbingGameActive, setClimbingGameActive] = useState(false);
+  const [level, setLevel] = useState(1);
+  const [raceActive, setRaceActive] = useState(false);
   
   // Multiplayer state
   const [multiplayer, setMultiplayer] = useState(false);
@@ -126,14 +124,11 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
   // Handle pausing
   useEffect(() => {
     if (isPaused && gameState === 'playing') {
-      // Stop any playing sounds when paused
       if (synthRef.current) {
-        synthRef.current.releaseAll();
+        synthRef.current.triggerRelease();
       }
-      setClimbingGameActive(false);
-    } else if (!isPaused && gameState === 'playing') {
-      setClimbingGameActive(true);
     }
+    setRaceActive(!isPaused);
   }, [isPaused, gameState]);
   
   // Initialize audio context and synth
@@ -161,28 +156,29 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
   useEffect(() => {
     if (level === 1) {
       // Level 1: Major, Natural Minor, Pentatonic Major, Pentatonic Minor
-      setAvailableScales(SCALE_TYPES[1]);
+      // Don't set currentScale here, just keep the available types
     } else if (level === 2) {
       // Level 2: Add Harmonic Minor, Melodic Minor, Blues Scale
-      setAvailableScales(SCALE_TYPES[2]);
     } else {
       // Level 3: All scales
-      setAvailableScales(SCALE_TYPES[3]);
     }
   }, [level]);
   
   // Generate a random scale based on current level
   const generateRandomScale = () => {
+    // Get available scale types based on level
+    let availableScaleTypes = [];
+    for (let i = 1; i <= level; i++) {
+      availableScaleTypes = [...availableScaleTypes, ...SCALE_TYPES[i]];
+    }
+    
     // Pick a random root note from C to B (0-11)
     const randomRootIndex = Math.floor(Math.random() * 12);
     const newRootNote = allNotes[randomRootIndex];
     
     // Pick a random scale type from available scales
-    const randomScaleIndex = Math.floor(Math.random() * availableScales.length);
-    const randomScale = availableScales[randomScaleIndex];
-    
-    // Set the new root note
-    setRootNote(newRootNote);
+    const randomScaleIndex = Math.floor(Math.random() * availableScaleTypes.length);
+    const randomScale = availableScaleTypes[randomScaleIndex];
     
     // Create the scale object
     const scale = {
@@ -199,9 +195,7 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
       return allNotes[noteIndex].note;
     });
     
-    // Store the target scale
-    setTargetScale(scale);
-    
+    setCurrentScale(scale);
     return scale;
   };
   
@@ -268,17 +262,19 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
   
   // Start a new round
   const startNewRound = () => {
-    setSelectedNotes([]);
+    setUserNotes([]);
     setFeedback(null);
     
     // Generate a random scale
     const scale = generateRandomScale();
     
-    // Play the root note
-    playNote(scale.root.note);
+    // Play the root note only if scale was generated successfully
+    if (scale && scale.root) {
+      playNote(scale.root.note);
+    }
     
     setGameState('playing');
-    setClimbingGameActive(true);
+    setRaceActive(true);
     
     // Trigger player jumping animation briefly
     setPlayerJumping(true);
@@ -294,7 +290,7 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
     setRound(1);
     setLevel(1);
     startNewRound();
-    setClimbingGameActive(true);
+    setRaceActive(true);
   };
   
   // Initialize multiplayer mode
@@ -322,22 +318,22 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
     playNote(note);
     
     // Toggle the note selection
-    const isSelected = selectedNotes.includes(note);
+    const isSelected = userNotes.includes(note);
     
     if (isSelected) {
-      setSelectedNotes(prev => prev.filter(n => n !== note));
+      setUserNotes(prev => prev.filter(n => n !== note));
     } else {
-      setSelectedNotes(prev => [...prev, note]);
+      setUserNotes(prev => [...prev, note]);
     }
   };
   
   // Submit answer
   const handleSubmit = () => {
-    if (isPaused || gameState !== 'playing' || !targetScale) return;
+    if (isPaused || gameState !== 'playing' || !currentScale) return;
     
     // Sort both arrays to make comparison easier
-    const sortedSelected = [...selectedNotes].sort();
-    const sortedExpected = [...targetScale.notes].sort();
+    const sortedSelected = [...userNotes].sort();
+    const sortedExpected = [...currentScale.notes].sort();
     
     // Check if the selected notes match the scale
     const isCorrect = JSON.stringify(sortedSelected) === JSON.stringify(sortedExpected);
@@ -346,7 +342,7 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
     if (isCorrect) {
       setScore(prevScore => prevScore + 1);
       setFeedback({
-        message: `Correct! You built a ${targetScale.root.note} ${targetScale.type} scale correctly.`,
+        message: `Correct! You built a ${currentScale.root.note} ${currentScale.type} scale correctly.`,
         success: true
       });
       
@@ -357,13 +353,13 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
       }, 1000);
     } else {
       setFeedback({
-        message: `Not quite. The ${targetScale.root.note} ${targetScale.type} scale contains these notes:`,
+        message: `Not quite. The ${currentScale.root.note} ${currentScale.type} scale contains these notes:`,
         success: false
       });
     }
     
     setGameState('feedback');
-    setClimbingGameActive(false);
+    setRaceActive(false);
     
     // Level up after every 5 correct answers
     if (isCorrect && (score + 1) % 5 === 0 && level < 3) {
@@ -402,86 +398,9 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
     return null;
   };
   
-  // Rendering the climbing track
-  const renderClimbingTrack = () => {
-    const maxHeight = 15; // Maximum score to reach the top
-    
-    return (
-      <div className="climbing-track relative w-full h-full bg-gradient-to-b from-blue-900 to-indigo-900 rounded-lg overflow-hidden border border-gray-700">
-        {/* Terrain layers */}
-        <div className="absolute inset-0">
-          <div className="h-1/3 w-full bg-gradient-to-b from-green-800 to-green-900 absolute bottom-0"></div>
-          <div className="h-1/3 w-full bg-gradient-to-b from-amber-700 to-amber-800 absolute bottom-1/3"></div>
-          <div className="h-1/3 w-full bg-gradient-to-b from-gray-500 to-gray-600 absolute bottom-2/3"></div>
-        </div>
-        
-        {/* Climbing path */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-2 bg-gray-400 opacity-30 transform -translate-x-1/2"></div>
-        
-        {/* Height markers */}
-        {[0, 5, 10, 15].map(mark => (
-          <div 
-            key={mark} 
-            className="absolute right-0 text-xs text-white bg-gray-800 bg-opacity-70 px-1 rounded z-10"
-            style={{ bottom: `${(mark / maxHeight) * 100}%`, transform: 'translateY(50%)' }}
-          >
-            {mark}
-          </div>
-        ))}
-        
-        {/* Flag at the top */}
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 text-xl">
-          🚩
-        </div>
-        
-        {/* Player characters */}
-        {multiplayer && players.map((player, index) => {
-          const heightPercent = (player.score / maxHeight) * 100;
-          const horizontalPos = 45 + (index * 10); // Distribute players horizontally
-          
-          return (
-            <div 
-              key={player.id}
-              className={`absolute transition-all duration-1000 text-2xl ${player.id === 'p1' ? 'z-20' : 'z-10'}`}
-              style={{ 
-                bottom: `${heightPercent}%`, 
-                left: `${horizontalPos}%`,
-                filter: player.id === 'p1' ? 'drop-shadow(0 0 6px white)' : 'none',
-                transform: player.id === 'p1' && playerJumping ? 'translateY(-20px)' : 'none',
-              }}
-            >
-              <div className="flex flex-col items-center">
-                <div className={`w-8 h-8 flex items-center justify-center rounded-full bg-${player.color} mb-1`}>
-                  {player.character}
-                </div>
-                <div className="text-xs font-bold text-white bg-gray-800 bg-opacity-50 px-1 rounded">
-                  {player.name}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        
-        {/* Single player mode character */}
-        {!multiplayer && (
-          <div 
-            className={`absolute transition-all duration-1000 text-2xl left-1/2 transform -translate-x-1/2 z-20 ${playerJumping ? 'animate-bounce' : ''}`}
-            style={{ 
-              bottom: `${(score / maxHeight) * 100}%`,
-            }}
-          >
-            <div className="flex flex-col items-center">
-              <div className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-600 mb-1 shadow-lg">
-                🧗
-              </div>
-              <div className="text-xs font-bold text-white bg-gray-800 bg-opacity-70 px-1 rounded">
-                You
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
+  // Handle race completion
+  const handleRaceComplete = () => {
+    console.log("Race completed!");
   };
   
   // Toggle player panel
@@ -522,7 +441,7 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
         <div className="w-full lg:w-3/5 flex flex-col space-y-4">
           {/* Game State and Controls */}
           <div className="bg-gray-800 rounded-md p-4 flex-grow flex flex-col">
-            {gameState === 'initial' ? (
+            {gameState === 'idle' ? (
               <div className="text-center flex-grow flex flex-col justify-center items-center">
                 <h3 className="text-2xl mb-6">Scale Builder Challenge</h3>
                 <p className="mb-8 text-gray-300">Select the correct notes to build scales</p>
@@ -549,7 +468,7 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
                 <div className="mb-4">
                   {gameState === 'playing' ? (
                     <div className="text-center mb-6">
-                      <p className="text-lg">Build a <span className="font-bold">{targetScale?.root.note} {targetScale?.type}</span> scale</p>
+                      <p className="text-lg">Build a <span className="font-bold">{currentScale?.root?.note} {currentScale?.type}</span> scale</p>
                       <p className="text-sm text-gray-400">
                         Select all notes that belong to this scale, then submit your answer
                       </p>
@@ -559,9 +478,9 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
                       <p className={`text-lg font-bold ${feedback?.success ? 'text-green-500' : 'text-red-500'}`}>
                         {feedback?.message}
                       </p>
-                      {!feedback?.success && targetScale && (
+                      {!feedback?.success && currentScale && (
                         <div className="mt-2">
-                          <p className="text-gray-300">{targetScale.notes.join(', ')}</p>
+                          <p className="text-gray-300">{currentScale.notes?.join(', ')}</p>
                         </div>
                       )}
                     </div>
@@ -577,11 +496,11 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
                         <div
                           key={note.note}
                           className={`relative flex-grow border border-gray-700 rounded-b-md ${
-                            selectedNotes.includes(note.note) ? 'bg-green-600' : 'bg-white'
+                            userNotes.includes(note.note) ? 'bg-green-600' : 'bg-white'
                           } ${gameState !== 'playing' || isPaused ? 'opacity-80' : 'cursor-pointer hover:bg-gray-200'}`}
                           onClick={() => gameState === 'playing' && !isPaused && handleNoteClick(note.note)}
                         >
-                          <span className={`absolute bottom-2 left-1/2 transform -translate-x-1/2 ${selectedNotes.includes(note.note) ? 'text-white' : 'text-black'}`}>
+                          <span className={`absolute bottom-2 left-1/2 transform -translate-x-1/2 ${userNotes.includes(note.note) ? 'text-white' : 'text-black'}`}>
                             {note.note}
                           </span>
                         </div>
@@ -594,7 +513,7 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
                         <div
                           key={note.note}
                           className={`absolute h-24 z-10 w-10 ${
-                            selectedNotes.includes(note.note) ? 'bg-green-800' : 'bg-black'
+                            userNotes.includes(note.note) ? 'bg-green-800' : 'bg-black'
                           } ${gameState !== 'playing' || isPaused ? 'opacity-80' : 'cursor-pointer hover:bg-gray-900'}`}
                           style={{
                             left: `${note.position}%`,
@@ -617,9 +536,9 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
                   {gameState === 'playing' ? (
                     <button
                       onClick={handleSubmit}
-                      disabled={selectedNotes.length === 0 || isPaused}
+                      disabled={userNotes.length === 0 || isPaused}
                       className={`px-6 py-3 rounded-md transition-colors ${
-                        selectedNotes.length === 0 || isPaused
+                        userNotes.length === 0 || isPaused
                           ? 'bg-gray-600 cursor-not-allowed'
                           : 'bg-green-600 hover:bg-green-700'
                       }`}
@@ -644,9 +563,9 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
                     </button>
                   )}
                   
-                  {gameState === 'playing' && (
+                  {gameState === 'playing' && currentScale?.root && (
                     <button
-                      onClick={() => playNote(targetScale.root.note)}
+                      onClick={() => playNote(currentScale.root.note)}
                       className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
                       disabled={isPaused}
                     >
@@ -659,76 +578,22 @@ function ScaleBuilder({ onScoreUpdate, isPaused, isCompetition = false }) {
           </div>
         </div>
         
-        {/* Climbing Game Column - 2/5 width, hidden on mobile */}
-        <div className="hidden lg:block lg:w-2/5 ml-4">
-          <div className="bg-gray-800 rounded-md p-4 h-full">
-            <h3 className="text-xl font-bold mb-2">Climbing Challenge</h3>
-            
-            {/* Climbing game visualization */}
-            {multiplayer ? (
-              <div className="relative h-full">
-                {/* Climbing visualization for multiplayer */}
-                <div className="relative h-[400px] bg-gray-900 rounded-md p-2 overflow-hidden">
-                  {/* Mountain/Climbing path */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-indigo-900 opacity-50"></div>
-                  
-                  {/* Player Positions */}
-                  {players.map((player, index) => {
-                    // Calculate position based on score
-                    const verticalPos = Math.min(Math.max((player.score / maxHeight) * 100, 0), 95);
-                    const horizontalPos = 10 + (index * 25); // Distribute horizontally
-                    
-                    return (
-                      <div 
-                        key={player.id} 
-                        className="absolute transition-all duration-1000 z-10"
-                        style={{
-                          bottom: `${verticalPos}%`,
-                          left: `${horizontalPos}%`,
-                          filter: player.id === 'p1' ? 'drop-shadow(0 0 6px white)' : 'none',
-                          transform: player.id === 'p1' && playerJumping ? 'translateY(-20px)' : 'none',
-                        }}
-                      >
-                        <div className="text-3xl">{player.character}</div>
-                        <div className="text-center text-xs bg-gray-800 bg-opacity-70 rounded-md px-1 -mt-1">
-                          {player.name} ({player.score})
-                        </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {/* Finish Line */}
-                  <div className="absolute top-2 left-0 w-full h-4 border-t-2 border-dashed border-white flex justify-center">
-                    <div className="bg-black bg-opacity-50 px-2 rounded-md -mt-3 text-xs">
-                      FINISH
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="relative h-[400px]">
-                <ClimbingGame 
-                  score={score * 10}
-                  maxScore={MAX_ROUNDS * 10}
-                  active={climbingGameActive}
-                  onComplete={() => console.log('Climbing complete!')}
+        {/* Race Visualization */}
+        <div className="lg:w-2/5 lg:ml-6">
+          {gameState !== 'idle' && (
+            <div className="bg-gray-800 bg-opacity-80 backdrop-blur-md rounded-xl p-4 shadow-xl border border-gray-700 h-full flex flex-col">
+              <h3 className="text-lg font-bold mb-4 text-white text-center">Race to the Finish!</h3>
+              <div className="flex-1 flex items-center justify-center min-h-[400px]">
+                <RaceVisualization 
+                  score={score} 
+                  maxScore={15} 
+                  isActive={raceActive && gameState === 'playing'} 
+                  onComplete={handleRaceComplete}
                   difficulty={level}
                 />
-                
-                {/* Single player avatar */}
-                {!multiplayer && (
-                  <div 
-                    className={`absolute transition-all duration-1000 text-2xl left-1/2 transform -translate-x-1/2 z-20 ${playerJumping ? 'animate-bounce' : ''}`}
-                    style={{ 
-                      bottom: `${(score / maxHeight) * 100}%`,
-                    }}
-                  >
-                    🧗‍♂️
-                  </div>
-                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
       

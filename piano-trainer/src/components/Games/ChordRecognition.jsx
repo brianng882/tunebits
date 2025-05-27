@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Tone from 'tone';
-import ClimbingGame from './ClimbingGame';
+import RaceVisualization from './RaceVisualization';
 
 function ChordRecognition({ onScoreUpdate, isPaused, isCompetition = false }) {
   const [gameState, setGameState] = useState('idle');
@@ -13,7 +13,7 @@ function ChordRecognition({ onScoreUpdate, isPaused, isCompetition = false }) {
   const [options, setOptions] = useState([]);
   const [chordNotes, setChordNotes] = useState([]);
   const [showKeyboard, setShowKeyboard] = useState(false);
-  const [climbingGameActive, setClimbingGameActive] = useState(false);
+  const [raceActive, setRaceActive] = useState(false);
   
   // Use ref for synth to prevent recreation
   const synthRef = useRef(null);
@@ -93,14 +93,11 @@ function ChordRecognition({ onScoreUpdate, isPaused, isCompetition = false }) {
   // Handle pausing
   useEffect(() => {
     if (isPaused && gameState === 'playing') {
-      // Stop any playing sounds if game is paused
       if (synthRef.current) {
-        synthRef.current.releaseAll();
+        synthRef.current.triggerRelease();
       }
     }
-    
-    // Pause the climbing game when the main game is paused
-    setClimbingGameActive(!isPaused);
+    setRaceActive(!isPaused);
   }, [isPaused, gameState]);
   
   // Initialize Tone.js
@@ -320,7 +317,7 @@ function ChordRecognition({ onScoreUpdate, isPaused, isCompetition = false }) {
       setRound(1);
       setLevel(1);
       startNewRound();
-      setClimbingGameActive(true);
+      setRaceActive(true);
     } catch (error) {
       console.error("Error starting game:", error);
       setFeedback({
@@ -371,15 +368,14 @@ function ChordRecognition({ onScoreUpdate, isPaused, isCompetition = false }) {
     }
   };
   
-  // Handle climbing game completion
-  const handleClimbingComplete = () => {
-    console.log("Climbing game completed!");
-    // Add any special rewards or animations here
+  // Handle race completion
+  const handleRaceComplete = () => {
+    console.log("Race completed!");
   };
   
   return (
     <div className="w-full h-full">
-      <div className="max-w-3xl mx-auto py-8">
+      <div className="max-w-6xl mx-auto py-8">
         {/* Game Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-4 text-white">Chord Recognition</h1>
@@ -420,171 +416,194 @@ function ChordRecognition({ onScoreUpdate, isPaused, isCompetition = false }) {
           )}
         </div>
 
-        {/* Game Area */}
-        <div className="bg-gray-800 bg-opacity-80 backdrop-blur-md rounded-xl p-6 shadow-xl border border-gray-700">
-          {gameState === 'playing' && (
-            <div className="text-center">
-              <p className="text-xl mb-6 text-white">What chord is this?</p>
-              
-              {/* Play buttons */}
-              <div className="flex justify-center gap-4 mb-8">
-                <button
-                  onClick={playChord}
-                  disabled={isPaused}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <span>🎹</span> Play Chord
-                </button>
-                <button
-                  onClick={playBroken}
-                  disabled={isPaused}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <span>🎵</span> Play Broken
-                </button>
-              </div>
-              
-              {/* Chord options */}
-              <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
-                {options.map((chord, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleOptionSelect(chord)}
-                    disabled={isPaused}
-                    className="chord-option bg-gray-700 hover:bg-gray-600 text-white py-4 px-3 rounded-lg transition-colors"
-                  >
-                    <div className="font-bold text-lg">{chord.fullName}</div>
-                    <div className="text-xs text-gray-300">{chord.fullSymbol}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {gameState === 'feedback' && (
-            <div className="text-center p-6">
-              <div className={`text-5xl mb-4 ${feedback?.correct ? 'text-green-500' : 'text-orange-500'}`}>
-                {feedback?.correct ? '🎵' : '🎼'}
-              </div>
-              <h2 className="text-2xl font-bold mb-6 text-white">{feedback?.message}</h2>
-              
-              {/* Keyboard visualization for the chord notes */}
-              {showKeyboard && (
-                <div className="mb-8">
-                  <p className="text-lg font-semibold mb-2 text-white">
-                    {feedback?.targetChord?.fullName} chord notes:
-                  </p>
+        {/* Game Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-[600px]">
+          {/* Main Game Area */}
+          <div className="lg:col-span-3">
+            <div className="bg-gray-800 bg-opacity-80 backdrop-blur-md rounded-xl p-6 shadow-xl border border-gray-700 h-full">
+              {gameState === 'playing' && (
+                <div className="text-center">
+                  <p className="text-xl mb-6 text-white">What chord is this?</p>
                   
-                  <div className="relative flex justify-center mb-4 overflow-x-auto py-4">
-                    <div className="flex relative">
-                      {/* White Keys */}
-                      <div className="flex">
-                        {allNotes.filter(note => note.type === 'white').map((noteObj, index) => (
-                          <div
-                            key={noteObj.note}
-                            className={`
-                              w-10 h-32 
-                              piano-key
-                              relative 
-                              border-2 border-gray-700
-                              rounded-b-md
-                              flex items-end justify-center
-                              pb-2
-                              ${chordNotes.includes(noteObj.note) 
-                                ? 'bg-blue-200 border-blue-500 text-gray-900 shadow-glow' 
-                                : 'bg-white border-gray-500 text-gray-900 opacity-60'
-                              }
-                            `}
-                          >
-                            <span className="text-xs font-semibold">{noteObj.note}</span>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Black Keys */}
-                      <div className="absolute top-0 left-0 right-0 flex">
-                        {allNotes.map((noteObj, index) => {
-                          if (noteObj.type !== 'black') return null;
-                          
-                          // Find white key before this black key to position it
-                          const prevWhiteNotes = allNotes.filter(n => n.type === 'white');
-                          const prevNoteIndex = allNotes.findIndex(n => n.note === noteObj.note) - 1;
-                          const prevWhiteIndex = prevWhiteNotes.findIndex(n => 
-                            n.note === allNotes[prevNoteIndex].note
-                          );
-                          
-                          // Position black keys between white keys
-                          const leftPos = prevWhiteIndex * 40 + 30; // Adjusted for smaller keys
-                          
-                          return (
-                            <div
-                              key={noteObj.note}
-                              className={`
-                                w-6 h-20
-                                piano-key
-                                absolute
-                                border-2 border-gray-900
-                                rounded-b-md
-                                flex items-end justify-center
-                                pb-1
-                                ${chordNotes.includes(noteObj.note)
-                                  ? 'bg-blue-700 border-blue-900 text-white shadow-glow-blue' 
-                                  : 'bg-gray-900 border-gray-800 text-white opacity-60'
-                                }
-                                z-10
-                              `}
-                              style={{ left: `${leftPos}px` }}
-                            >
-                              <span className="text-[10px] font-semibold">{noteObj.note}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-center gap-2">
+                  {/* Play buttons */}
+                  <div className="flex justify-center gap-4 mb-8">
                     <button
                       onClick={playChord}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-colors text-sm"
+                      disabled={isPaused}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
                     >
-                      Listen Again
+                      <span>🎹</span> Play Chord
                     </button>
                     <button
                       onClick={playBroken}
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors text-sm"
+                      disabled={isPaused}
+                      className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2"
                     >
-                      Hear Broken
+                      <span>🎵</span> Play Broken
                     </button>
+                  </div>
+                  
+                  {/* Chord options */}
+                  <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
+                    {options.map((chord, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleOptionSelect(chord)}
+                        disabled={isPaused}
+                        className="chord-option bg-gray-700 hover:bg-gray-600 text-white py-4 px-3 rounded-lg transition-colors"
+                      >
+                        <div className="font-bold text-lg">{chord.fullName}</div>
+                        <div className="text-xs text-gray-300">{chord.fullSymbol}</div>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
               
-              <button
-                onClick={handleContinue}
-                className="glow-button bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg transform transition-all hover:-translate-y-1"
-              >
-                Continue
-              </button>
+              {gameState === 'feedback' && (
+                <div className="text-center p-6">
+                  <div className={`text-5xl mb-4 ${feedback?.correct ? 'text-green-500' : 'text-orange-500'}`}>
+                    {feedback?.correct ? '🎵' : '🎼'}
+                  </div>
+                  <h2 className="text-2xl font-bold mb-6 text-white">{feedback?.message}</h2>
+                  
+                  {/* Keyboard visualization for the chord notes */}
+                  {showKeyboard && (
+                    <div className="mb-8">
+                      <p className="text-lg font-semibold mb-2 text-white">
+                        {feedback?.targetChord?.fullName} chord notes:
+                      </p>
+                      
+                      <div className="relative flex justify-center mb-4 overflow-x-auto py-4">
+                        <div className="flex relative">
+                          {/* White Keys */}
+                          <div className="flex">
+                            {allNotes.filter(note => note.type === 'white').map((noteObj, index) => (
+                              <div
+                                key={noteObj.note}
+                                className={`
+                                  w-10 h-32 
+                                  piano-key
+                                  relative 
+                                  border-2 border-gray-700
+                                  rounded-b-md
+                                  flex items-end justify-center
+                                  pb-2
+                                  ${chordNotes.includes(noteObj.note) 
+                                    ? 'bg-blue-200 border-blue-500 text-gray-900 shadow-glow' 
+                                    : 'bg-white border-gray-500 text-gray-900 opacity-60'
+                                  }
+                                `}
+                              >
+                                <span className="text-xs font-semibold">{noteObj.note}</span>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {/* Black Keys */}
+                          <div className="absolute top-0 left-0 right-0 flex">
+                            {allNotes.map((noteObj, index) => {
+                              if (noteObj.type !== 'black') return null;
+                              
+                              // Find white key before this black key to position it
+                              const prevWhiteNotes = allNotes.filter(n => n.type === 'white');
+                              const prevNoteIndex = allNotes.findIndex(n => n.note === noteObj.note) - 1;
+                              const prevWhiteIndex = prevWhiteNotes.findIndex(n => 
+                                n.note === allNotes[prevNoteIndex].note
+                              );
+                              
+                              // Position black keys between white keys
+                              const leftPos = prevWhiteIndex * 40 + 30; // Adjusted for smaller keys
+                              
+                              return (
+                                <div
+                                  key={noteObj.note}
+                                  className={`
+                                    w-6 h-20
+                                    piano-key
+                                    absolute
+                                    border-2 border-gray-900
+                                    rounded-b-md
+                                    flex items-end justify-center
+                                    pb-1
+                                    ${chordNotes.includes(noteObj.note)
+                                      ? 'bg-blue-700 border-blue-900 text-white shadow-glow-blue' 
+                                      : 'bg-gray-900 border-gray-800 text-white opacity-60'
+                                    }
+                                    z-10
+                                  `}
+                                  style={{ left: `${leftPos}px` }}
+                                >
+                                  <span className="text-[10px] font-semibold">{noteObj.note}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={playChord}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-colors text-sm"
+                        >
+                          Listen Again
+                        </button>
+                        <button
+                          onClick={playBroken}
+                          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors text-sm"
+                        >
+                          Hear Broken
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={handleContinue}
+                    className="glow-button bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg transform transition-all hover:-translate-y-1"
+                  >
+                    Continue
+                  </button>
+                </div>
+              )}
+              
+              {gameState === 'complete' && (
+                <div className="text-center p-6">
+                  <div className="text-7xl mb-6">🎉</div>
+                  <h2 className="text-3xl font-bold mb-4 text-white">Game Complete!</h2>
+                  <p className="text-xl mb-4 text-white">Your final score: {score}/15</p>
+                  {score >= 12 && <p className="text-green-400 font-bold mb-4">Excellent job! Your ear for chords is outstanding!</p>}
+                  {score >= 8 && score < 12 && <p className="text-blue-400 font-bold mb-4">Good work! Your chord recognition skills are developing well.</p>}
+                  {score < 8 && <p className="text-orange-400 font-bold mb-4">Keep practicing! Chord recognition takes time to develop.</p>}
+                  <button
+                    onClick={startGame}
+                    className="glow-button bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white px-8 py-3 rounded-lg transform transition-all hover:-translate-y-1"
+                  >
+                    Play Again
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-          
-          {gameState === 'complete' && (
-            <div className="text-center p-6">
-              <div className="text-7xl mb-6">🎉</div>
-              <h2 className="text-3xl font-bold mb-4 text-white">Game Complete!</h2>
-              <p className="text-xl mb-4 text-white">Your final score: {score}/15</p>
-              {score >= 12 && <p className="text-green-400 font-bold mb-4">Excellent job! Your ear for chords is outstanding!</p>}
-              {score >= 8 && score < 12 && <p className="text-blue-400 font-bold mb-4">Good work! Your chord recognition skills are developing well.</p>}
-              {score < 8 && <p className="text-orange-400 font-bold mb-4">Keep practicing! Chord recognition takes time to develop.</p>}
-              <button
-                onClick={startGame}
-                className="glow-button bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white px-8 py-3 rounded-lg transform transition-all hover:-translate-y-1"
-              >
-                Play Again
-              </button>
-            </div>
-          )}
+          </div>
+
+          {/* Race Visualization */}
+          <div className="lg:col-span-2">
+            {gameState !== 'idle' && (
+              <div className="bg-gray-800 bg-opacity-80 backdrop-blur-md rounded-xl p-4 shadow-xl border border-gray-700 h-full flex flex-col">
+                <h3 className="text-lg font-bold mb-4 text-white text-center">Race to the Finish!</h3>
+                <div className="flex-1 flex items-center justify-center min-h-[400px]">
+                  <RaceVisualization 
+                    score={score} 
+                    maxScore={15} 
+                    isActive={raceActive && gameState === 'playing'} 
+                    onComplete={handleRaceComplete}
+                    difficulty={level}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

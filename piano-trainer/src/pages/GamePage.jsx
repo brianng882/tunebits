@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import PianoGame from '../components/ExistingGame/PianoGame';
+import PianoGame from '../components/Games/PianoGame';
 import RhythmChallenge from '../components/Games/RhythmChallenge';
 import ChordRecognition from '../components/Games/ChordRecognition';
 import ScaleBuilder from '../components/Games/ScaleBuilder';
